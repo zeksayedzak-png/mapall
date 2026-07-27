@@ -1,47 +1,51 @@
 -- =====================================================
--- ADDED: WEAPON DISPLAY VIEWER (GunDisplay + KnifeDisplay)
+-- ADDED: WEAPON DISPLAY (MOBILE SIMPLE)
 -- =====================================================
 
-local weaponDisplayGui = Instance.new("ScreenGui", player.PlayerGui)
-weaponDisplayGui.Name = "WeaponDisplayUI"
-weaponDisplayGui.ResetOnSpawn = false
+local weaponGui = Instance.new("ScreenGui", player.PlayerGui)
+weaponGui.Name = "WeaponDisplayUI"
+weaponGui.ResetOnSpawn = false
 
--- النافذة الرئيسية
-local mainFrame = Instance.new("Frame", weaponDisplayGui)
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+-- النافذة الرئيسية (مربع أسود شفاف)
+local mainFrame = Instance.new("Frame", weaponGui)
+mainFrame.Size = UDim2.new(0, 250, 0, 350)
+mainFrame.Position = UDim2.new(0.5, -125, 0.5, -175)
 mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
 mainFrame.BackgroundTransparency = 0.6
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
-local mainStroke = Instance.new("UIStroke", mainFrame)
-mainStroke.Thickness = 1
-mainStroke.Color = Color3.fromRGB(100, 100, 100)
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
 
--- عنوان
-local title = Instance.new("TextLabel", mainFrame)
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "🗡️ WEAPON DISPLAY"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 14
-title.BackgroundTransparency = 1
+-- سحب النافذة باللمس (بدون تعقيد)
+local dragging = false
+local dragStart = nil
+local dragStartPos = nil
 
--- منطقة التمرير
-local scroll = Instance.new("ScrollingFrame", mainFrame)
-scroll.Size = UDim2.new(1, -10, 1, -40)
-scroll.Position = UDim2.new(0, 5, 0, 35)
-scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 3
-scroll.CanvasSize = UDim2.new(0, 0, 0, 10)
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        dragStartPos = mainFrame.Position
+    end
+end)
 
-local listLayout = Instance.new("UIListLayout", scroll)
-listLayout.Padding = UDim.new(0, 5)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(dragStartPos.X.Scale, dragStartPos.X.Offset + delta.X, dragStartPos.Y.Scale, dragStartPos.Y.Offset + delta.Y)
+    end
+end)
 
--- دالة تحديث القائمة
+mainFrame.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- قائمة الأسلحة (بدون سكرول، كل السلاح في صف)
 local function UpdateWeaponList()
-    -- حذف العناصر القديمة
-    for _, child in pairs(scroll:GetChildren()) do
-        if child:IsA("Frame") then child:Destroy() end
+    for _, child in pairs(mainFrame:GetChildren()) do
+        if child:IsA("TextLabel") or child:IsA("TextButton") then
+            child:Destroy()
+        end
     end
 
     local weaponDisplay = workspace:FindFirstChild("WeaponDisplays")
@@ -50,36 +54,30 @@ local function UpdateWeaponList()
     local gunDisplay = weaponDisplay:FindFirstChild("GunDisplay")
     local knifeDisplay = weaponDisplay:FindFirstChild("KnifeDisplay")
 
-    local allWeapons = {}
-
-    -- جمع الأسلحة من GunDisplay
+    local weapons = {}
     if gunDisplay then
         for _, item in pairs(gunDisplay:GetChildren()) do
-            if item:IsA("Tool") or item:IsA("BasePart") then
-                table.insert(allWeapons, {Name = item.Name, Ref = item, Type = "Gun"})
-            end
+            table.insert(weapons, {Name = item.Name, Ref = item})
         end
     end
-
-    -- جمع الأسلحة من KnifeDisplay
     if knifeDisplay then
         for _, item in pairs(knifeDisplay:GetChildren()) do
-            if item:IsA("Tool") or item:IsA("BasePart") then
-                table.insert(allWeapons, {Name = item.Name, Ref = item, Type = "Knife"})
-            end
+            table.insert(weapons, {Name = item.Name, Ref = item})
         end
     end
 
-    -- إنشاء صف لكل سلاح
-    for _, weapon in pairs(allWeapons) do
-        local row = Instance.new("Frame", scroll)
-        row.Size = UDim2.new(1, -10, 0, 35)
-        row.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
-        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
+    local yOffset = 10
+    for _, weapon in pairs(weapons) do
+        -- صف السلاح
+        local row = Instance.new("Frame", mainFrame)
+        row.Size = UDim2.new(1, -10, 0, 30)
+        row.Position = UDim2.new(0, 5, 0, yOffset)
+        row.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 5)
 
         -- اسم السلاح
         local nameLabel = Instance.new("TextLabel", row)
-        nameLabel.Size = UDim2.new(0.7, 0, 1, 0)
+        nameLabel.Size = UDim2.new(0.65, 0, 1, 0)
         nameLabel.Position = UDim2.new(0, 5, 0, 0)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = weapon.Name
@@ -88,104 +86,52 @@ local function UpdateWeaponList()
         nameLabel.TextSize = 12
         nameLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-        -- زر "إضافة/تجربة"
-        local tryBtn = Instance.new("TextButton", row)
-        tryBtn.Size = UDim2.new(0, 50, 0, 25)
-        tryBtn.Position = UDim2.new(1, -55, 0, 5)
-        tryBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-        tryBtn.Text = "➕"
-        tryBtn.TextColor3 = Color3.new(1, 1, 1)
-        tryBtn.Font = Enum.Font.GothamBold
-        tryBtn.TextSize = 16
-        Instance.new("UICorner", tryBtn).CornerRadius = UDim.new(0, 5)
+        -- زر الإضافة
+        local addBtn = Instance.new("TextButton", row)
+        addBtn.Size = UDim2.new(0, 40, 0, 22)
+        addBtn.Position = UDim2.new(1, -45, 0, 4)
+        addBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        addBtn.Text = "+"
+        addBtn.TextColor3 = Color3.new(1, 1, 1)
+        addBtn.Font = Enum.Font.GothamBold
+        addBtn.TextSize = 16
+        Instance.new("UICorner", addBtn).CornerRadius = UDim.new(0, 5)
 
-        -- وظيفة زر الإضافة
-        tryBtn.MouseButton1Click:Connect(function()
-            -- محاولة إضافة السلاح إلى المخزون
-            local weaponRef = weapon.Ref
-            if weaponRef then
-                -- إذا كان السلاح في Workspace، نستنسخه
-                local newWeapon = weaponRef:Clone()
-                newWeapon.Parent = player.Backpack
-                
-                -- محاولة تجهيزه فوراً
-                task.wait(0.1)
-                if player.Character and player.Character:FindFirstChild("Humanoid") then
-                    local humanoid = player.Character.Humanoid
-                    humanoid:EquipTool(newWeapon)
-                end
-
-                Rayfield:Notify({
-                    Title = "🔫 WEAPON ADDED",
-                    Content = weapon.Name .. " has been added to your inventory!",
-                    Duration = 2
-                })
-            else
-                Rayfield:Notify({
-                    Title = "⚠️ ERROR",
-                    Content = "Could not find weapon: " .. weapon.Name,
-                    Duration = 2
-                })
+        addBtn.MouseButton1Click:Connect(function()
+            local newWeapon = weapon.Ref:Clone()
+            newWeapon.Parent = player.Backpack
+            task.wait(0.1)
+            if player.Character and player.Character:FindFirstChild("Humanoid") then
+                player.Character.Humanoid:EquipTool(newWeapon)
             end
+            Rayfield:Notify({
+                Title = "✅ ADDED",
+                Content = weapon.Name .. " added!",
+                Duration = 2
+            })
         end)
-    end
 
-    -- تحديث حجم التمرير
-    scroll.CanvasSize = UDim2.new(0, 0, 0, #allWeapons * 40 + 10)
+        yOffset = yOffset + 35
+    end
 end
 
--- تحديث القائمة أول مرة
 UpdateWeaponList()
 
--- تحديث تلقائي عند إضافة/حذف سلاح في المسارين
-local function onWeaponDisplayChanged()
-    UpdateWeaponList()
-end
-
+-- تحديث عند تغيير الأسلحة
 local weaponDisplay = workspace:FindFirstChild("WeaponDisplays")
 if weaponDisplay then
-    weaponDisplay.ChildAdded:Connect(onWeaponDisplayChanged)
-    weaponDisplay.ChildRemoved:Connect(onWeaponDisplayChanged)
-    
-    -- مراقبة التغييرات داخل GunDisplay و KnifeDisplay
+    weaponDisplay.ChildAdded:Connect(UpdateWeaponList)
+    weaponDisplay.ChildRemoved:Connect(UpdateWeaponList)
     local gunDisplay = weaponDisplay:FindFirstChild("GunDisplay")
     local knifeDisplay = weaponDisplay:FindFirstChild("KnifeDisplay")
-    
     if gunDisplay then
-        gunDisplay.ChildAdded:Connect(onWeaponDisplayChanged)
-        gunDisplay.ChildRemoved:Connect(onWeaponDisplayChanged)
+        gunDisplay.ChildAdded:Connect(UpdateWeaponList)
+        gunDisplay.ChildRemoved:Connect(UpdateWeaponList)
     end
-    
     if knifeDisplay then
-        knifeDisplay.ChildAdded:Connect(onWeaponDisplayChanged)
-        knifeDisplay.ChildRemoved:Connect(onWeaponDisplayChanged)
+        knifeDisplay.ChildAdded:Connect(UpdateWeaponList)
+        knifeDisplay.ChildRemoved:Connect(UpdateWeaponList)
     end
 end
 
--- ==================== سحب النافذة (باللمس) ====================
-local draggingWeaponUI = false
-local dragWeaponUIStart = nil
-local dragWeaponUIStartPos = nil
-
-mainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingWeaponUI = true
-        dragWeaponUIStart = input.Position
-        dragWeaponUIStartPos = mainFrame.Position
-    end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if draggingWeaponUI and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-        local delta = input.Position - dragWeaponUIStart
-        mainFrame.Position = UDim2.new(dragWeaponUIStartPos.X.Scale, dragWeaponUIStartPos.X.Offset + delta.X, dragWeaponUIStartPos.Y.Scale, dragWeaponUIStartPos.Y.Offset + delta.Y)
-    end
-end)
-
-mainFrame.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        draggingWeaponUI = false
-    end
-end)
-
-print("🗡️ Weapon Display Viewer Loaded (GunDisplay + KnifeDisplay)")
+print("🗡️ Weapon Display (Mobile Simple) Loaded")
